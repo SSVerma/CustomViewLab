@@ -46,9 +46,37 @@ public class StatusView extends View {
     }
 
     @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int desiredWidth = 0;
+        int desiredHeight = 0;
+
+        int specWidth = MeasureSpec.getSize(widthMeasureSpec);//Overall width available, width constraints
+        int useAbleWidth = specWidth - getPaddingLeft() - getPaddingRight();
+        float perItemWidth = shapeSize + spacing;
+        int totalStatsIconCanFit = (int) (useAbleWidth / perItemWidth);
+        int maxHorizontalStatusIcon = Math.min(totalStatsIconCanFit, statusDone.length);
+
+        desiredWidth = (int) (perItemWidth * maxHorizontalStatusIcon - spacing/*Initial rectangle spacing*/);
+        desiredWidth = desiredWidth + getPaddingLeft() + getPaddingRight();
+
+        int rowsRequired = statusDone.length / maxHorizontalStatusIcon + 1;
+        desiredHeight = (int)((shapeSize + spacing/*Bottom spacing*/) * rowsRequired - spacing/*last row bottom spacing*/);
+        desiredHeight = desiredHeight + getPaddingTop() + getPaddingBottom();
+
+        int width = resolveSizeAndState(desiredWidth, widthMeasureSpec, 0);
+        int height = resolveSizeAndState(desiredHeight, heightMeasureSpec, 0);
+
+        setMeasuredDimension(width, height);
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        setUpStatusRectangle(w);
+    }
+
+    @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-
         for (int index = 0; index < statusRects.length; index++) {
             int cx = statusRects[index].centerX();
             int cy = statusRects[index].centerY();
@@ -58,11 +86,9 @@ public class StatusView extends View {
                 canvas.drawCircle(cx, cy, radius, paintFill);
             }
         }
-
     }
 
     private void init(AttributeSet attrs) {
-
         if (isInEditMode()) {
             /*Preview mode of layout, just for ui verification*/
             setUpPreviewModeValues();
@@ -73,7 +99,6 @@ public class StatusView extends View {
         spacing = 32f;
         float diameter = shapeSize - outlineWidth;
         radius = diameter / 2;
-        setUpStatusRectangle();
 
         /*Outline circle*/
         outlineColor = Color.GRAY;
@@ -91,7 +116,7 @@ public class StatusView extends View {
     }
 
     private void setUpPreviewModeValues() {
-        int totalStatus = 5;
+        int totalStatus = 9;
         boolean[] previewModeStatusDone = new boolean[totalStatus];
         /*Lets make half of the status done to true*/
         for (int i = 0; i < totalStatus / 2; i++) {
@@ -100,15 +125,23 @@ public class StatusView extends View {
         setStatusDone(previewModeStatusDone);
     }
 
-    private void setUpStatusRectangle() {
+    private void setUpStatusRectangle(int newWidth) {
+        int useAbleWidth = newWidth - getPaddingLeft() - getPaddingRight();
+        int statusIconCanFit = (int) (useAbleWidth / (shapeSize + spacing));
+        int maxHorizontalIcon = Math.min(statusIconCanFit, statusDone.length);
+
         statusRects = new Rect[statusDone.length];
 
         for (int index = 0; index < statusRects.length; index++) {
-            int left = (int) (index * (shapeSize + spacing));
-            int top = 0;
-            statusRects[index] = new Rect(left, top, (int) (left + shapeSize), (int) (top + shapeSize));
-        }
+            int rowIndex = index / maxHorizontalIcon;
+            int colIndex = index % maxHorizontalIcon;
 
+            int left = (int) (colIndex * (shapeSize + spacing)) + getPaddingLeft();
+            int top = (int) (rowIndex * (shapeSize + spacing)) + getPaddingTop();
+            int right = (int) (left + shapeSize);
+            int bottom = (int) (top + shapeSize);
+            statusRects[index] = new Rect(left, top, right, bottom);
+        }
     }
 
     public boolean[] getStatusDone() {
