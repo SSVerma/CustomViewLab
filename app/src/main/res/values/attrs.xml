@@ -5,4 +5,16 @@
         <attr name="pv_stroke_width" format="dimension" />
         <attr name="pv_color" format="color" />
     </declare-styleable>
+
+    <declare-styleable name="StatusView">
+        <attr name="outlineColor" format="color" />
+        <attr name="outlineWidth" format="dimension" />
+        <attr name="radius" format="dimension" />
+        <attr name="fillColor" format="color" />
+        <attr name="shape" format="enum">
+            <enum name="circle" value="0" />
+            <enum name="square" value="1" />
+        </attr>
+    </declare-styleable>
+
 </resources>

@@ -16,11 +16,12 @@
         app:pv_stroke_width="8dp"
         app:pv_total_wedges="6" />
 
-    <com.ssverma.customviewlab.PizzaView
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:layout_marginTop="16dp"
-        app:pv_stroke_width="2dp"
-        app:pv_total_wedges="3" />
+    <com.ssverma.customviewlab.StatusView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/status_view"
+        app:outlineColor="@color/colorPrimary"
+        app:shape="circle"
+        app:outlineWidth="2dp"/>
 
 </LinearLayout>
