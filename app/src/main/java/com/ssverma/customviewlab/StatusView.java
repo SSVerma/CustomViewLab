@@ -7,12 +7,21 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.os.Build;
+import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
+import android.support.v4.view.ViewCompat;
+import android.support.v4.view.accessibility.AccessibilityNodeInfoCompat;
+import android.support.v4.widget.ExploreByTouchHelper;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
+
+import java.util.List;
 
 public class StatusView extends View {
 
@@ -30,6 +39,7 @@ public class StatusView extends View {
     private float radius;
     private int shape;
     private float DEFAULT_OUTLINE_WIDTH = 4;
+    private StatusViewAccessibilityHelper accessibilityHelper;
 
     public StatusView(Context context) {
         super(context);
@@ -111,6 +121,25 @@ public class StatusView extends View {
         return super.onTouchEvent(event);
     }
 
+    /*For accessibility hook*/
+    @Override
+    protected void onFocusChanged(boolean gainFocus, int direction, @Nullable Rect previouslyFocusedRect) {
+        super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
+        accessibilityHelper.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
+    }
+
+    /*For accessibility hook*/
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        return accessibilityHelper.dispatchKeyEvent(event) || super.dispatchKeyEvent(event);
+    }
+
+    /*For accessibility hook*/
+    @Override
+    protected boolean dispatchHoverEvent(MotionEvent event) {
+        return accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event);
+    }
+
     private void drawSquare(Canvas canvas, int statusIconIndex) {
         Rect rect = statusRects[statusIconIndex];
 
@@ -131,6 +160,9 @@ public class StatusView extends View {
         }
         statusDone[statusIconIndex] = !statusDone[statusIconIndex];
         invalidate();//Redraw -> onDraw() is called
+
+        accessibilityHelper.invalidateVirtualView(statusIconIndex);
+        accessibilityHelper.sendEventForVirtualView(statusIconIndex, AccessibilityEvent.TYPE_VIEW_CLICKED);
     }
 
     private int findItemAtTouchPoint(float x, float y) {
@@ -147,6 +179,12 @@ public class StatusView extends View {
             /*Preview mode of layout, just for ui verification*/
             setUpPreviewModeValues();
         }
+
+        /*Adding accessibility hook*/
+        /*Accessibility - > Information presentation {screen reader} + Navigation with D-pad {Directional pad}*/
+        setFocusable(true); /*Enable navigation focus with D-pad*/
+        accessibilityHelper = new StatusViewAccessibilityHelper(this);
+        ViewCompat.setAccessibilityDelegate(this, accessibilityHelper);
 
         DisplayMetrics displayMetrics = getContext().getResources().getDisplayMetrics();
         float displayDensity = displayMetrics.density;
@@ -214,4 +252,56 @@ public class StatusView extends View {
     public void setStatusDone(boolean[] statusDone) {
         this.statusDone = statusDone;
     }
+
+    private class StatusViewAccessibilityHelper extends ExploreByTouchHelper {
+
+        /**
+         * Constructs a new helper that can expose a virtual view hierarchy for the
+         * specified host view.
+         *
+         * @param host view whose virtual view hierarchy is exposed by this helper
+         */
+        public StatusViewAccessibilityHelper(@NonNull View host) {
+            super(host);
+        }
+
+        @Override
+        protected int getVirtualViewAt(float x, float y) {
+            /*on status icon tap, status icon -> virtual view*/
+            int iconIndex = findItemAtTouchPoint(x, y);
+            return iconIndex == -1 ? ExploreByTouchHelper.INVALID_ID : iconIndex;
+        }
+
+        @Override
+        protected void getVisibleVirtualViews(List<Integer> virtualViewIds) {
+            if (statusRects == null) {
+                return;
+            }
+            for (int index = 0; index < statusRects.length; index++) {
+                virtualViewIds.add(index);
+            }
+        }
+
+        @Override
+        protected void onPopulateNodeForVirtualView(int virtualViewId, @NonNull AccessibilityNodeInfoCompat node) {
+            node.setFocusable(true);/*D-pad navigation*/
+            node.setBoundsInParent(statusRects[virtualViewId]);
+            node.setContentDescription("Status icon " + virtualViewId);/*Screen reader*/
+            node.setCheckable(true);
+            node.setChecked(statusDone[virtualViewId]);
+
+            node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK);
+        }
+
+        @Override
+        protected boolean onPerformActionForVirtualView(int virtualViewId, int action, @Nullable Bundle arguments) {
+            switch (action) {
+                case AccessibilityNodeInfoCompat.ACTION_CLICK:
+                    toggleStatusIcon(virtualViewId);
+                    return true;
+            }
+            return false;
+        }
+    }
+
 }
